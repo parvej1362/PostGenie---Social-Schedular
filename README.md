@@ -11,7 +11,7 @@ A modern, full-stack social media automation platform built with **React**, **No
 ![JWT](https://img.shields.io/badge/Authentication-JWT-orange)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v3-38bdf8?logo=tailwindcss)
 ![OpenAI](https://img.shields.io/badge/AI-OpenAI%20API-black?logo=openai)
-![Zernio](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_97jSlCB9leNYVqy1P_9miXiKmQKwiPRII7VmHZnYyA&s)
+![Zernio](https://img.shields.io/badge/Social_API's-Zernio?labelColor=red)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ---
