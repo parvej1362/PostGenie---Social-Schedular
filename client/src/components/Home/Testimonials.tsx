@@ -6,7 +6,7 @@ const testimonials = [
         role: "Marketing Manager",
         avatar: "S",
         avatarBg: "from-red-400 to-pink-400",
-        text: "Scheduler has saved our team 10+ hours a week. The AI composer is genuinely impressive — it writes content that sounds like us.",
+        text: "PostGenie has saved our team 10+ hours a week. The AI composer is genuinely impressive — it writes content that sounds like us.",
     },
     {
         name: "Marcus L.",
@@ -20,7 +20,7 @@ const testimonials = [
         role: "Startup Founder",
         avatar: "P",
         avatarBg: "from-sky-400 to-blue-500",
-        text: "Finally a scheduler that's beautiful AND powerful. The clean dashboard makes it easy to see exactly what's going out and when.",
+        text: "Finally a PostGenie that's beautiful AND powerful. The clean dashboard makes it easy to see exactly what's going out and when.",
     },
 ];
 
