@@ -7,36 +7,6 @@ import { Generation } from "../models/Generation.js";
 import { User } from "../models/User.js";
 import { Post } from "../models/Post.js";
 
-//helper to poll Leonardo.ai
-const pollLeonardoJob = async (generationId: string, apiKey: string) : Promise<string> =>{
-    const maxRetries=20;
-    const delay=5000;
-
-    for(let i=0; i< maxRetries; i++){
-        try {
-            const response = await axios.get(`https://cloud.leonardo.ai/api/rest/v1/${generationId}`, {headers:{
-            accept: "application/json", authorization: `Bearer ${apiKey}`
-            }})
-
-            const generation =response.data.generations_by_pk;
-            if(generation.status === "COMPLETE"){
-                if(generation.generated_images && generation.generated_images.length > 0){
-                    return generation.generated_images[0].url;
-                }
-                throw new Error("Generation complete but no images found.")
-            }
-            if(generation.status === "FAILED"){
-                throw new Error("Leonardo.ai generation failed.")
-            }
-        } catch (err: any) {
-            console.error("Polling error:", err?.response?.data || err.message);
-        }
-
-        await new Promise((resolve)=> setTimeout(resolve,delay));
-    }
-    throw new Error("Leonardo.ai generation timed out.")
-}
-
 //Generate post
 //POST /api/posts/generate
 export const generatePost = async (req:Authrequest, res:Response): Promise<void>=>{
@@ -45,7 +15,7 @@ export const generatePost = async (req:Authrequest, res:Response): Promise<void>
 
         const apiKey = process.env.GEMINI_API_KEY;
         if(!apiKey){
-            res.status(400).json({message: "Gemini API is missing. Please add it to your server/.env file."});
+            res.status(400).json({message: "Gemini API key is missing. Please add it to your server/.env file."});
             return;
         }
 
@@ -53,7 +23,7 @@ export const generatePost = async (req:Authrequest, res:Response): Promise<void>
 
         //Generate text
         const textResponse = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3.8-flash",
             contents: `Generate a social media post based on this prompt: "${prompt}".
             Tone: ${tone}.
             Include relevant hashtags.
@@ -65,7 +35,7 @@ export const generatePost = async (req:Authrequest, res:Response): Promise<void>
         let imagePrompt= prompt;
 
         try {
-            const  rawText = textResponse.text || "";
+            const rawText = textResponse.text || "";
             const jsonMatch= rawText.match(/\{[\s\S]*\}/);
             const data = jsonMatch ? JSON.parse(jsonMatch[0]) : {content : rawText, 
             imagePrompt: prompt};
@@ -77,42 +47,64 @@ export const generatePost = async (req:Authrequest, res:Response): Promise<void>
         let mediaUrl = "";
         if(generateImage){
             try {
-                const leonardoKey = process.env.LEONARDO_API_KEY;
-                if(leonardoKey){
-                    //Use Leonardo.ai for image generation
-                    const leoResponse = await axios.post(
-                        "https://cloud.leonardo.ai/api/rest/v2/generations",
+                const stabilityKey = process.env.STABILITY_API_KEY;
+                if(!stabilityKey){
+                    console.error("Stability AI error: STABILITY_API_KEY is missing in server environment.");
+                } else {
+                    const formData = new FormData();
+                    formData.append("prompt", imagePrompt);
+                    formData.append("output_format", "png");
+                    formData.append("aspect_ratio", "1:1");
+                    formData.append("mode", "text-to-image");
+
+                    const stabilityResponse = await axios.post(
+                        "https://api.stability.ai/v2beta/stable-image/generate/sd3",
+                        formData,
                         {
-                            "public": false,
-                            "model": "gpt-image-2",
-                            "parameters": {
-                                "quality": "LOW",
-                                "prompt": imagePrompt,
-                                "quantity": 1,
-                                "width": 1024,
-                                "height": 1024,
-                                "prompt_enhance": "OFF"
-                            }
-                        },{
-                            headers:{
-                                accept: "application/json",
-                                authorization: `Bearer ${leonardoKey}`,
-                                "content-type": "application/json",
-                            }
+                            headers: {
+                                Authorization: `Bearer ${stabilityKey}`,
+                                Accept: "image/*",
+                            },
+                            responseType: "arraybuffer",
+                            timeout: 60000,
                         }
-                    )
+                    );
 
-                    const generationId = leoResponse.data.generate.generationId;
-                    const tempUrl = await pollLeonardoJob(generationId, leonardoKey);
+                    const imageBuffer = Buffer.from(stabilityResponse.data);
 
-                    //Upload to Cloudinary for persistence
-                    const uploadResult = await cloudinary.uploader.upload(tempUrl, {
-                        folder: "ai-generations",
+                    //Upload buffer to Cloudinary for persistence
+                    const uploadResult = await new Promise<any>((resolve, reject) => {
+                        const stream = cloudinary.uploader.upload_stream(
+                            { folder: "ai-generations" },
+                            (error, result) => {
+                                if (error) reject(error);
+                                else resolve(result);
+                            }
+                        );
+                        stream.end(imageBuffer);
                     });
-                    mediaUrl = uploadResult.secure_url;
+
+                    if (uploadResult && uploadResult.secure_url) {
+                        mediaUrl = uploadResult.secure_url;
+                    } else {
+                        console.error("Cloudinary upload failed: No secure_url returned");
+                    }
                 }
             } catch (err: any) {
-                console.error("Image generation failed:",err);
+                let errorDetails = err?.message || "Unknown error";
+                if (err?.response?.data) {
+                    try {
+                        const rawErrData = Buffer.isBuffer(err.response.data)
+                            ? err.response.data.toString("utf-8")
+                            : err.response.data instanceof ArrayBuffer
+                            ? Buffer.from(err.response.data).toString("utf-8")
+                            : JSON.stringify(err.response.data);
+                        errorDetails = `HTTP ${err.response.status}: ${rawErrData}`;
+                    } catch (parseErr) {
+                        errorDetails = `HTTP ${err.response.status}`;
+                    }
+                }
+                console.error("Stability AI image generation failed:", errorDetails);
             }
         }
 
