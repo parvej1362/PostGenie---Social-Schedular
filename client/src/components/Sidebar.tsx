@@ -1,15 +1,11 @@
 import { CalendarDaysIcon, LayoutDashboardIcon, LogOutIcon, UserIcon, Wand2Icon } from 'lucide-react'
 
 import { NavLink, useLocation } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 const Sidebar = ({isOpen, setIsOpen} : {isOpen: boolean, setIsOpen: (val:boolean)=> void}) => {
   
-  const {logout, user} = {
-    logout: () =>{
-      window.location.href="/";
-    },
-    user: {name:"John Doe", email:"johndoe@example.com"}
-  }
+  const {logout, user} = useAuth()
 
   const location = useLocation()
 
@@ -61,16 +57,23 @@ const Sidebar = ({isOpen, setIsOpen} : {isOpen: boolean, setIsOpen: (val:boolean
 
         {/*User footer*/}
         <div className='p-4 border-t border-slate-100'>
-          <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors">
-            <div className='size-8 rounded-full bg-linear-to-br from-red-400 to-pink-400 flex items-center justify-center text-white text-sm font-medium shrink-0'>
-              {user?.name?.charAt(0).toUpperCase() || "U"}
+          {(() => {
+            const userName = user?.name || (user as any)?.anme || (user?.email ? user.email.split('@')[0] : "User");
+            const initial = userName.charAt(0).toUpperCase();
 
-            </div>
-            <div className='flex-1 min-w-0'>
-              <div className='text-sm  text-slate-800 truncate'>{user?.name}</div>
-              <div className='text-xs text-slate-400 truncate'>{user?.email}</div>
-            </div>
-          </div>
+            return (
+              <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors">
+                <div className='size-8 rounded-full bg-gradient-to-br from-red-400 to-pink-400 flex items-center justify-center text-white text-sm font-medium shrink-0'>
+                  {initial}
+                </div>
+
+                <div className='flex-1 min-w-0'>
+                  <div className='text-sm font-medium text-slate-800 truncate'>{userName}</div>
+                  <div className='text-xs text-slate-400 truncate'>{user?.email}</div>
+                </div>
+              </div>
+            );
+          })()}
 
           <button onClick={logout} className="mt-1 flex items-center gap-2 px-3 py-2 w-full rounded text-sm text-slate-500 hover:bg-red-50 hover:text-red-500 transition-all duration-150">
             <LogOutIcon className="size-4"/>
